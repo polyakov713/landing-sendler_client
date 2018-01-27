@@ -1,0 +1,23 @@
+{
+  "name": "land_sendler",
+  "version": "1.0.0",
+  "description": "Client script Landing Sendler",
+  "main": "landing_sendler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/polyakov713/landing-sendler_client.git"
+  },
+  "keywords": [
+    "telegram",
+    "send-message"
+  ],
+  "author": "Vladislav Polyakov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/polyakov713/landing-sendler_client/issues"
+  },
+  "homepage": "https://github.com/polyakov713/landing-sendler_client#readme"
+}
