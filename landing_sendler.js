@@ -17,64 +17,141 @@ function LandingSendler(isScript) {
 	}
 }
 
-LandingSendler.prototype.init = function() {
+LandingSendler.prototype.init = function () {
 	var lsForms = document.getElementsByClassName('landing-sendler-form');
+	if (!lsForms.length) {
+		lsForms = document.getElementsByTagName('form');
+	}
 	this.addFormListeners(lsForms, this);
 }
 
-LandingSendler.prototype.addFormListeners = function(forms, _this) {
-	for (var i = 0; i < forms.length; i++ ) {
-		forms[i].addEventListener('submit', function(event) {
+LandingSendler.prototype.addFormListeners = function (forms, _this) {
+	for (var i = 0; i < forms.length; i++) {
+		forms[i].addEventListener('submit', function (event) {
 			_this.submitFormHandler(event, _this);
 		});
 	}
 }
 
 LandingSendler.prototype.submitFormHandler = function (event, _this) {
-	var form = event.target,
-		lsToken = form.elements.lsToken.value,
-		lsFields = form.getElementsByClassName('landing-sendler-field'),
-		tgData = lsFields.length ? _this.mapTgData(lsFields, true) : _this.mapTgData(form.elements, false);
-	
-	this.submitData(lsToken, tgData);
+	var form = event.target;
+	if (form.elements.lsToken) var lsToken = form.elements.lsToken.value;
+	else console.warn('Landing Sendler: Скрытый инпут с токеном не найден.');
+
+	var lsFields = form.getElementsByClassName('landing-sendler-field');
+	if (!lsFields.length) lsFields = form.elements;
+	var formName = form.hasAttribute('data-ls-form-name') ? form.getAttribute('data-ls-form-name') : form.name || 'noName',
+		tgData = _this.mapTgData(lsFields);
+
+	this.submitData(lsToken, { formName, fields: tgData });
 }
 
-LandingSendler.prototype.mapTgData = function (fields, ls) {
+LandingSendler.prototype.mapTgData = function (fields) {
 	var results = [];
-	if(ls) {
-		for (var i = 0; i < fields.length; i++) {
+	var fields = this.prepareFields(fields);
+	console.log(fields);
+
+	for (var i = 0; i < fields.length; i++) {
+		var fieldValue = this.formatField(fields[i]);
+		if (fieldValue) {
 			results.push({
-				caption: fields[i].hasAttribute('data-ls-caption') ? fields[i].getAttribute('data-ls-caption') : fields[i].name || '' + i,
-				value: this.formatField(fields[i])
+				caption: this.getCaption(fields[i], i),
+				value: fieldValue
 			});
 		}
-	} else {
-		for (var i = 0; i < fields.length; i++) {
-			if (fields[i].name !== 'lsToken' && fields[i].tagName.toLowerCase() !== 'button') {
-				results.push({
-					caption: fields[i].hasAttribute('data-ls-caption') ? fields[i].getAttribute('data-ls-caption') : fields[i].name || '' + i,
-					value: this.formatField(fields[i])
-				})
-			}
-		}
 	}
+
 	return results;
 }
 
-LandingSendler.prototype.formatField = function (field) {
-	switch (field.tagName.toLowerCase()) {
-		case 'input':
-			return field.value.trim();
-			break;
-		default:
-			return '';
-			break;
+LandingSendler.prototype.prepareFields = function (fields) {
+	var prepared = [],
+		inputNames = [],
+		inputName = '';
+	for (var i = 0; i < fields.length; i++) {
+		if (fields[i].name !== 'lsToken') {
+			var tagname = fields[i].tagName.toLowerCase();
+			if (tagname === 'input') {
+				switch (fields[i].type) {
+					case 'text':
+					case 'hidden':
+						prepared.push(fields[i]);
+						break;
+					case 'checkbox':
+						inputName = fields[i].name;
+						if (inputName.length) {
+							if (!~inputNames.indexOf(inputName)) {
+								var checkboxGroup = fields[inputName];
+								prepared.push(checkboxGroup);
+								inputNames.push(inputName);
+							}
+						} else {
+							prepared.push(fields[i]);
+						}
+						break;
+					case 'radio':
+						inputName = fields[i].name;
+						if (inputName.length) {
+							if (!~inputNames.indexOf(inputName)) {
+								var radioGroup = fields[inputName];
+								prepared.push(radioGroup);
+								inputNames.push(inputName);
+							}
+						} else {
+							prepared.push(fields[i]);
+						}
+						break;
+					default:
+						break;
+				}
+			}
+		}
 	}
+
+	return prepared;
+}
+
+LandingSendler.prototype.formatField = function (field) {
+	var tagname = field.length ? field[0].tagName.toLowerCase() : field.tagName.toLowerCase(),
+		fieldType = field.length ? field[0].type : field.type;
+	console.log(tagname);
+	if (tagname === 'input') {
+		switch (fieldType) {
+			case 'text':
+			case 'hidden':
+				return field.length ? field[0].value.trim() : field.value.trim();
+				break;
+			case 'checkbox':
+				var checkboxes = '';
+				for (var i = 0; i < field.length; i++) {
+					if (field[i].checked) checkboxes += field[i].value + '; '
+				}
+				return checkboxes;
+				break;
+			case 'radio':
+				return field.value.trim();
+				break;
+			default:
+				return false;
+		}
+	} else {
+		return false;
+	}
+}
+
+LandingSendler.prototype.getCaption = function (field, num) {
+	var caption = '';
+	if (field.length) {
+		caption = field[0].hasAttribute('data-ls-caption') ? field[0].getAttribute('data-ls-caption') : field[0].name.length ? field[0].name : '' + num;
+	} else {
+		caption = field.hasAttribute('data-ls-caption') ? field.getAttribute('data-ls-caption') : field.name.length ? field.name : '' + num;
+	}
+	return caption;
 }
 
 LandingSendler.prototype.submitData = function (token, data) {
 	console.log('submitData', token, data);
-	var body = { lsToken: token, data: data};
+	var body = { lsToken: token, data: data };
 	var bodyStr = JSON.stringify(body);
 	var xhr = new XMLHttpRequest();
 	xhr.timeout = 20000;
@@ -85,7 +162,7 @@ LandingSendler.prototype.submitData = function (token, data) {
 		if (xhr.readyState != 4) return;
 		if (xhr.status == 200) {
 			var res = JSON.parse(xhr.response);
-			if(!res.success)
+			if (!res.success)
 				console.error('Landing Sendler Error: ' + res.error);
 		}
 	}

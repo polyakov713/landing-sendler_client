@@ -1,6 +1,6 @@
 {
   "name": "land_sendler",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Client script Landing Sendler",
   "main": "landing_sendler.js",
   "scripts": {
